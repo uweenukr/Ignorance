@@ -373,8 +373,6 @@ namespace Mirror.Transport
             knownConnIDToPeers = new Dictionary<int, Peer>();
             knownPeersToConnIDs = new Dictionary<Peer, int>();
 
-            if (enableCompression) EnableCompressionOnServer();
-
             // Bind if we have an address specified.
             if (!string.IsNullOrEmpty(address))
             {
@@ -386,7 +384,9 @@ namespace Mirror.Transport
 
             // Finally create the server.
             server.Create(serverAddress, maxConnections, packetSendMethods.Length,0,0);
-
+            
+			if (enableCompression) EnableCompressionOnServer();
+			
             Log("Ignorance Transport: Entering server receive loop...");
             ServerReceiveLoop(server);
         }
