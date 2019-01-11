@@ -152,10 +152,22 @@ namespace Mirror.Transport
 
 
         // -- INITIALIZATION -- // 
-        private readonly string address;
+        private readonly string serverBindAddress;
+        private string clientModeAddress;
         private readonly ushort port;
         private readonly ushort maxConnections;
         private readonly bool enableCompression;
+
+
+        /// <summary>
+        /// Outputs a friendly message to the console log. Don't remove unless you hate things saying hello.
+        /// You'll make the transport sad. :(
+        /// </summary>
+        private void GreetEveryone()
+        {
+            Log($"Thank you for using Ignorance Transport v{TransportVersion} for Mirror 2018! Report bugs and donate coffee at https://github.com/SoftwareGuy/Ignorance" + 
+                $"\nENET Library Version: {Library.version}");
+        }
 
         /// <summary>
         /// Initializes transport
@@ -166,13 +178,12 @@ namespace Mirror.Transport
         /// <param name="enableCompression">Should packets be comressed with LZ4 compression. Default false.</param>
         public IgnoranceTransport(string address, ushort port, ushort maxConnections, bool enableCompression = false)
         {
-            this.address = address;
+            this.serverBindAddress = address;
             this.port = port;
             this.maxConnections = maxConnections;
             this.enableCompression = enableCompression;
 
-            Log($"Thank you for using Ignorance Transport v{TransportVersion} for Mirror 2018! Report bugs and donate coffee at https://github.com/SoftwareGuy/Ignorance. \nENET Library Version: {Library.version}");
-
+            GreetEveryone();
             Library.Initialize();
         }
 
@@ -186,14 +197,13 @@ namespace Mirror.Transport
         /// <param name="enableCompression">Should packets be comressed with LZ4 compression. Default false.</param>
         public IgnoranceTransport(string address, ushort port, ushort maxConnections, IEnumerable<PacketFlags> channelTypes, bool enableCompression = false)
         {
-            this.address = address;
+            this.serverBindAddress = address;
             this.port = port;
             this.maxConnections = maxConnections;
             packetSendMethods = channelTypes.ToArray();
             this.enableCompression = enableCompression;
 
-            Log($"Thank you for using Ignorance Transport v{TransportVersion} for Mirror 2018! Report bugs and donate coffee at https://github.com/SoftwareGuy/Ignorance. \nENET Library Version: {Library.version}");
-
+            GreetEveryone();
             Library.Initialize();
         }
 
@@ -223,17 +233,17 @@ namespace Mirror.Transport
         {
             if (ServerActive())
             {
-                return $"Ignorance Server {address}:{port}";
+                return $"Ignorance Server {serverBindAddress}:{port}";
             }
 
             if (ClientConnected())
             {
-                return $"Ignorance Client {address}:{port}";
+                return $"Ignorance Client {clientModeAddress}:{port}";
             }
 
             if (clientPeer.IsSet && clientPeer.State == PeerState.Connecting)
             {
-                return $"Ignorance connecting to {address}:{port}";
+                return $"Ignorance connecting to {serverBindAddress}:{port}";
             }
 
             return "Ignorance Transport idle";
@@ -247,7 +257,8 @@ namespace Mirror.Transport
 
         public virtual void ClientConnect(string address, int port)
         {
-            Log(clientPeer.State);
+            Log($"Client Peer state is currently {clientPeer.State}");
+            this.clientModeAddress = address;
 
             // Setup our references.
             if (client == null) client = new Host();
@@ -260,7 +271,7 @@ namespace Mirror.Transport
             clientAddress.Port = (ushort)port;
 
             // Connect the client to the server by setting the address and start the client's data pump loop.
-            Log($"Ignorance Transport: Client will attempt connection to server {address}:{port}");
+            Log($"Ignorance Transport: Client will attempt connection to server {clientModeAddress}:{port}");
             Log("Ignorance Transport: Starting client receive loop...");
             clientPeer = client.Connect(clientAddress);
             ClientReceiveLoop(client);
@@ -342,6 +353,9 @@ namespace Mirror.Transport
         public virtual void ClientDisconnect()
         {
             if (clientPeer.IsSet && clientPeer.State != PeerState.Disconnected) clientPeer.DisconnectNow(0);
+
+            this.clientModeAddress = null;
+
             client?.Dispose();
             client = null;
         }
@@ -374,10 +388,10 @@ namespace Mirror.Transport
             knownPeersToConnIDs = new Dictionary<Peer, int>();
 
             // Bind if we have an address specified.
-            if (!string.IsNullOrEmpty(address))
+            if (!string.IsNullOrEmpty(serverBindAddress))
             {
-                Log($"Ignorance Transport: Binding server instance to {address ?? "(null)"}");
-                serverAddress.SetHost(address);
+                Log($"Ignorance Transport: Binding server instance to {serverBindAddress ?? "(null)"}");
+                serverAddress.SetHost(serverBindAddress);
             }
 
             serverAddress.Port = port;
